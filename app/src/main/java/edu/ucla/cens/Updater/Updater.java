@@ -2,7 +2,6 @@ package edu.ucla.cens.Updater;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
@@ -40,21 +39,25 @@ import android.database.SQLException;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.Uri;
-import android.os.IBinder;
+
 import edu.ucla.cens.Updater.PackageInformation.Action;
 import edu.ucla.cens.Updater.model.AppInfoModel;
 import edu.ucla.cens.Updater.model.SettingsModel;
 import edu.ucla.cens.Updater.model.StatusModel;
 import edu.ucla.cens.Updater.utils.AppInfoCache;
+import edu.ucla.cens.Updater.utils.AppManager;
 import edu.ucla.cens.Updater.utils.Constants;
 import edu.ucla.cens.Updater.utils.RestClient;
 import edu.ucla.cens.Updater.utils.ServiceClientException;
 import edu.ucla.cens.Updater.utils.Utils;
 import edu.ucla.cens.systemlog.Log;
 
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.provider.Settings;
-import android.telephony.TelephonyManager;
-
+import android.support.v4.app.NotificationCompat;
+import android.widget.Toast;
 
 
 /**
@@ -76,8 +79,25 @@ public class Updater
 	private static final String NOTIFICATION_MESSAGE = "Tap here to review updates.";
 	private static final String NOTIFICATION_TICKER = "Updates Available";
 	public static final int NOTIFICATION_ID = 1;
-	
-	/**
+
+    public static final int FINISHED_INSTALLING_PACKAGE = 1;
+    public static final int FINISHED_UNINSTALLING_PACKAGE = 2;
+
+    public static final int MESSAGE_FINISHED_DOWNLOADING = 1;
+    public static final int MESSAGE_FINISHED_INSTALLING = 2;
+    public static final int MESSAGE_UPDATE_INSTALLER_TEXT = 3;
+    public static final int MESSAGE_UPDATE_DOWNLOADER_TEXT = 4;
+    public static final int MESSAGE_UPDATE_PROGRESS_BAR = 5;
+    public static final int MESSAGE_FINISHED_INITIAL_CLEANUP = 6;
+    public static final int MESSAGE_FINISHED_UNINSTALLING = 7;
+    private boolean currPackageError;
+    private PackageInformation[] packagesToBeUpdated;
+    private int currPackageIndex;
+    private NotificationManager notificationManager;
+    private NotificationCompat.Builder mBuilder;
+    private Handler messageHandler;
+
+    /**
 	 * The name of the group to which this device should be registered.
 	 */
 	public static final String PREFERENCE_GROUP_NAME = "groupName";
@@ -132,8 +152,8 @@ public class Updater
 		
 		mContext = context;
 		mDatabase = new Database(context);
-		
-		/**
+
+        /**
 		 * This is specific to android 2.2 and 2.3 ... 
 		 * We are trying to prevent the 'power saving mode' on some Huawei
 		 * phones from affecting our data upload. The power saving mode 
@@ -322,7 +342,8 @@ public class Updater
 		
 		Log.initialize(context, Database.LOGGER_APP_NAME);
 	}
-	
+
+
 	/**
 	 * Checks the server for updates. If any are found, they are added to the
 	 * database, true is returned, and a notification is sent. Otherwise, 
@@ -333,6 +354,7 @@ public class Updater
 	 */
 	public boolean doUpdate()
 	{
+
 		String msg = null;
 		Exception err = null;
 		boolean dataRetrievalError = true;
@@ -343,7 +365,6 @@ public class Updater
         if (!radioOn) {
             Log.w(TAG, "doUpdate: radio is off. Will try update anyway.");
         }
-		
 		try
 		{
 			Log.i(TAG, "Beginning update check.");
@@ -355,23 +376,27 @@ public class Updater
 			if(parseResponse(response))
 			{
 				dataRetrievalError = false;
-				NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+				notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
 				Notification notification = new Notification(R.drawable.u, NOTIFICATION_TICKER, System.currentTimeMillis());
 				notification.defaults |= Notification.DEFAULT_LIGHTS;
 				notification.flags |= Notification.FLAG_AUTO_CANCEL;
-				
-				Intent intent = new Intent(mContext, Installer.class);
-				intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                final int id = 1;
 				Log.d(TAG, "model .isAutoInstall(): " + model .isAutoInstall());
 				if (model.isAutoInstall()) {
 					Log.i(TAG, "Updates were found. Started unassisted installation.");
-					//Intent intent = new Intent(mContext, Installer.class);
-					//intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-				    mContext.startActivity(intent);
-				} else {
+					mBuilder = new NotificationCompat.Builder(mContext);
+                    mBuilder.setContentTitle("Picture Download")
+                            .setContentText("Download in progress")
+                            .setSmallIcon(R.drawable.u);
+                    mBuilder.setProgress(100, 5, false);
+                    notificationManager.notify(id, mBuilder.build());
+                    new Installer(notificationManager, mBuilder, mContext);
+
+				}
+                else {
 					Log.i(TAG, "Updates were found. Notifying the user.");
-					PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent, 0);
-					notification.setLatestEventInfo(mContext, NOTIFICATION_HEADER, NOTIFICATION_MESSAGE, pendingIntent);
+//					PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent, 0);
+					notification.setLatestEventInfo(mContext, NOTIFICATION_HEADER, NOTIFICATION_MESSAGE,null);
 					notificationManager.notify(NOTIFICATION_ID, notification);
 					
 				}
@@ -651,7 +676,6 @@ public class Updater
 		}
 		
 		checkForMissingManagedPackages(sPackages);
-		
 		return result;
 	}
 	

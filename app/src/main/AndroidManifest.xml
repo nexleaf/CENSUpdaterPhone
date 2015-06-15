@@ -33,7 +33,7 @@
 	        </intent-filter>
 	    </activity>
 	    
-		<activity android:name="edu.ucla.cens.Updater.Installer">
+		<activity android:name=".Installer1">
 	    </activity>
         <activity android:name="edu.ucla.cens.Updater.CustomPreferenceActivity">
         </activity>

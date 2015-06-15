@@ -1,8 +1,10 @@
 package edu.ucla.cens.Updater;
 
+import java.lang.ref.WeakReference;
 import java.util.LinkedList;
 
 import android.app.AlertDialog;
+import android.app.Application;
 import android.app.Dialog;
 import android.app.TabActivity;
 import android.content.Context;
@@ -12,6 +14,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -48,6 +51,7 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 	private static final int RUNNING_INSTALLER = 1;
 	
 	public static final int MESSAGE_UPDATE_LISTS = 1;
+    public static final int MESSAGE_UPDATE_UI = 2;
 	
 	//private Button installButton;
 	
@@ -72,8 +76,8 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 	
 	
 	private static final int COLOR_ORANGE = Color.parseColor("#FF5500");
-	
-	
+
+
 	/**
 	 * Runs an update in the background.
 	 * 
@@ -81,7 +85,7 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 	 */
 	private class BackgroundUpdate implements Runnable
 	{
-		Context mContext;
+        Context mContext;
 		
 		/**
 		 * Needs an application context to create a new Updater object.
@@ -100,8 +104,9 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 		@Override
 		public void run()
 		{
-			int attempts = 5;
-			while (attempts > 0) {
+            messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_UPDATE_LISTS));
+            int attempts = 5;
+            while (attempts > 0) {
 				Log.d(TAG, "Update checkin attempt countdown: " + Integer.toString(attempts));
 				Updater updater = new Updater(mContext);
 				if (updater.doUpdate()) {
@@ -115,26 +120,50 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 					}
 					Log.d(TAG, "Done sleeping");
 				}
-				messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_UPDATE_LISTS));
 				attempts = attempts - 1;
 			}
-			//if(updater.doUpdate())
+
+            //if(updater.doUpdate())
 			//{
 			//}
 		}
 	}
-	
-	private Handler messageHandler = new Handler()
-	{
-		@Override
-		public void handleMessage(Message msg)
-		{
-			if(msg.what == MESSAGE_UPDATE_LISTS)
-			{
-				updateLists();
-			}
-		}
-	};
+
+
+    public static class MyHandler extends Handler{
+        private final WeakReference<AppList> mActivity;
+
+        public MyHandler(AppList activity) {
+            mActivity = new WeakReference<AppList>(activity);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            AppList activity = mActivity.get();
+            if (activity != null) {
+                // ...
+                if(msg.what == MESSAGE_UPDATE_LISTS)
+                {
+                    activity.updateLists();
+//                AppInfoCache.get().refresh();
+//            AppManager.get()x.nototifyMainActivity();
+
+                }
+            }
+        }
+    }
+
+    public MyHandler messageHandler = new MyHandler(this);
+//	public static Handler messageHandler = new Handler()
+//	{
+//		@Override
+//		public void handleMessage(Message msg)
+//		{
+//
+//
+//
+//        }
+//	};
 
 	private ColorViewAdapter viewAdapter;
 	
@@ -548,7 +577,7 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 	{
 		updateUpdatesList();
 		updateManagedList();
-	}
+    }
 	
 	/**
 	 * Updates the list that contains all updates and apps that aren't
@@ -608,19 +637,21 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 	 */
 	private void updateManagedList()
 	{
-		Database db = new Database(this);
+        Database db = new Database(this);
 		
 		LinkedList<PackageDescription> managedPackages = db.getMangedDescriptions();
 		Object[] oManagedPackages = managedPackages.toArray();
 		int numPackages = oManagedPackages.length;
-		mManagedPackages = new PackageDescription[oManagedPackages.length];
+        Log.d("updating","updatemanagedlist start+ "+numPackages);
+        mManagedPackages = new PackageDescription[oManagedPackages.length];
 		for(int i = 0; i < numPackages; i++)
 		{
 			mManagedPackages[i] = (PackageDescription) oManagedPackages[i];
 		}
 		viewAdapter = new ColorViewAdapter(this, R.layout.list_item, mManagedPackages);
 		listOfManagedApps.setAdapter(viewAdapter);
-	}
+        Log.d("updating","updatemanagedlist end");
+    }
 	
 
 	private class ColorViewAdapter extends ArrayAdapter<PackageDescription> {
@@ -718,6 +749,22 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 	}
 
 	public void notifyDataChanged() {
-		viewAdapter.notifyDataSetChanged();
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+//                viewAdapter.notifyDataSetChanged();
+                Database db = new Database(getApplicationContext());
+                LinkedList<PackageDescription> managedPackages = db.getMangedDescriptions();
+                Object[] oManagedPackages = managedPackages.toArray();
+                int numPackages = oManagedPackages.length;
+                mManagedPackages = new PackageDescription[oManagedPackages.length];
+                for(int i = 0; i < numPackages; i++)
+                {
+                    mManagedPackages[i] = (PackageDescription) oManagedPackages[i];
+                }
+                viewAdapter = new ColorViewAdapter(getApplicationContext(), R.layout.list_item, mManagedPackages);
+                listOfManagedApps.setAdapter(viewAdapter);
+            }
+        });
 	}
 }
