@@ -76,6 +76,7 @@ public class Installer {
     private StatusModel model = StatusModel.get();
     private NotificationManager notificationManager;
     private NotificationCompat.Builder mBuilder;
+
     public Installer(Context mContext){
 
         this.mContext = mContext;
@@ -191,7 +192,7 @@ public class Installer {
                     .setTicker(packagesToBeUpdated[currPackageIndex].getQualifiedName());
             mBuilder.setProgress(100, 0, false);
             notificationManager.notify(1, mBuilder.build());
-
+            String packageQualifiedName = packagesToBeUpdated[currPackageIndex].getQualifiedName();
 
             // These are placed throughout the code as a way to signal that the
             // process should stop, but without leaving the JVM or anything
@@ -206,7 +207,7 @@ public class Installer {
             }
             catch(MalformedURLException e)
             {
-                error("Malformed URL in package " + packagesToBeUpdated[currPackageIndex].getQualifiedName(), e);
+                error("Malformed URL in package " + packageQualifiedName, e);
                 return;
             }
 
@@ -222,8 +223,8 @@ public class Installer {
             SharedPreferences sharedPreferences = mContext.getSharedPreferences(Database.PACKAGE_PREFERENCES, Context.MODE_PRIVATE);
             try
             {
-                alreadyDownloaded = sharedPreferences.getInt(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" alreadyDownloaded",0);
-                lastModified = sharedPreferences.getString(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" lastmodified", "");
+                alreadyDownloaded = sharedPreferences.getInt(packageQualifiedName+" alreadyDownloaded",0);
+                lastModified = sharedPreferences.getString(packageQualifiedName+" lastmodified", "");
                 connection = (HttpURLConnection) url.openConnection();
 
                 // If this apk is partially downloaded, then ask for the rest of the apk.
@@ -281,10 +282,10 @@ public class Installer {
             {
                 // If partial content, then append the file. Else, write as usual.
                 if(responseCode.equals("206")){
-                    apkFile = mContext.openFileOutput(packagesToBeUpdated[currPackageIndex].getQualifiedName() + ".apk", mContext.MODE_WORLD_READABLE | mContext.MODE_APPEND);
+                    apkFile = mContext.openFileOutput(packageQualifiedName + ".apk", mContext.MODE_WORLD_READABLE | mContext.MODE_APPEND);
                 }
                 else{
-                    apkFile = mContext.openFileOutput(packagesToBeUpdated[currPackageIndex].getQualifiedName() + ".apk", mContext.MODE_WORLD_READABLE);
+                    apkFile = mContext.openFileOutput(packageQualifiedName + ".apk", mContext.MODE_WORLD_READABLE);
 
                 }
             }
@@ -318,24 +319,15 @@ public class Installer {
                 {
                     try
                     {
-                        if(activityKilled){
-                            //If activity is killed, the store the values in shared preferences.
-                            alreadyDownloaded = totalDownloaded;
-                            sharedPreferences.edit().putInt("alreadyDownloaded", alreadyDownloaded).commit();
-                            sharedPreferences.edit().putString("lastmodified", lastModified).commit();
-
-                            dataStream.close();
-                            return;
-                        }
-
                         apkFile.write(buff, 0, currDownloaded);
 
                         totalDownloaded += currDownloaded;
 
-//                        updateProgressBarValue(totalDownloaded, totalLength);
+                        // updateProgressBarValue(totalDownloaded, totalLength);
                         mBuilder.setProgress(totalLength, totalDownloaded, false);
                         // Displays the progress bar for the first time.
                         notificationManager.notify(1, mBuilder.build());
+
                         // This was originally being done to debug the code but
                         // is being left in as a flag that something odd has
                         // happened.
@@ -356,8 +348,8 @@ public class Installer {
                 // If IO Exception, store current downloaded and last modified
                 // in shared preferences.
                 alreadyDownloaded = totalDownloaded;
-                sharedPreferences.edit().putInt(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" alreadyDownloaded", alreadyDownloaded).commit();
-                sharedPreferences.edit().putString(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" lastmodified", lastModified).commit();
+                sharedPreferences.edit().putInt(packageQualifiedName+" alreadyDownloaded", alreadyDownloaded).commit();
+                sharedPreferences.edit().putString(packageQualifiedName+" lastmodified", lastModified).commit();
 
                 error("Error while reading from the url input stream.", e);
                 return;
@@ -366,8 +358,8 @@ public class Installer {
             if(activityKilled) return;
 
             // Reset the values in shared preferences if the download is successful.
-            sharedPreferences.edit().putInt(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" alreadyDownloaded", 0).commit();
-            sharedPreferences.edit().putString(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" lastmodified", "").commit();
+            sharedPreferences.edit().putInt(packageQualifiedName+" alreadyDownloaded", 0).commit();
+            sharedPreferences.edit().putString(packageQualifiedName+" lastmodified", "").commit();
             messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_FINISHED_DOWNLOADING));
         }
 
@@ -388,35 +380,6 @@ public class Installer {
             messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_FINISHED_DOWNLOADING));
         }
 
-        /**
-         * Updates the shared variable for what String should be displayed in
-         * the status title and sends a message back to the UI thread to
-         * refresh the text.
-         *
-         * @param text The text to be shown in the status title.
-         */
-        private void updateInstallerText(String text)
-        {
-            newInstallerText = text;
-            messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_UPDATE_INSTALLER_TEXT));
-        }
-
-        /**
-         * Updates the progress bar and the text below the progress bar with
-         * the parameterized values.
-         *
-         * @param totalDownloaded The value quantity downloaded thus far.
-         *
-         * @param totalLength The total length of the file we are downloading.
-         */
-        private void updateProgressBarValue(int totalDownloaded, int totalLength)
-        {
-            newProgressBarValue = (totalDownloaded / totalLength) * PROGRESS_BAR_MAX;
-            newDownloaderText = totalDownloaded + " / " + totalLength;
-
-            messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_UPDATE_PROGRESS_BAR));
-            messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_UPDATE_DOWNLOADER_TEXT));
-        }
     }
 
     /**
