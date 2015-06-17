@@ -104,12 +104,14 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 		@Override
 		public void run()
 		{
-            messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_UPDATE_LISTS));
+            //Adding a looper to this thread, so that we can use a Handler in Installer.
+            Looper.prepare();
+
             int attempts = 5;
             while (attempts > 0) {
 				Log.d(TAG, "Update checkin attempt countdown: " + Integer.toString(attempts));
 				Updater updater = new Updater(mContext);
-				if (updater.doUpdate()) {
+                if (updater.doUpdate()) {
 					attempts = 0;
 				} else {
 					try {
@@ -120,8 +122,11 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 					}
 					Log.d(TAG, "Done sleeping");
 				}
-				attempts = attempts - 1;
-			}
+                Looper.loop();
+                attempts = attempts - 1;
+                messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_UPDATE_LISTS));
+
+            }
 
             //if(updater.doUpdate())
 			//{

@@ -76,10 +76,13 @@ public class Installer {
     private StatusModel model = StatusModel.get();
     private NotificationManager notificationManager;
     private NotificationCompat.Builder mBuilder;
-    public Installer(NotificationManager notificationManager, NotificationCompat.Builder mBuilder, Context mContext){
-        this.notificationManager = notificationManager;
-        this.mBuilder = mBuilder;
+    public Installer(Context mContext){
+
         this.mContext = mContext;
+
+        // Initializing Notification Manager and Notification Builder
+        this.notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+        this.mBuilder = new NotificationCompat.Builder(mContext);
 
         Log.initialize(mContext, Database.LOGGER_APP_NAME);
 
@@ -118,7 +121,6 @@ public class Installer {
             currPackageIndex = 0;
             processPackage();
         }
-        Looper.prepare();
         messageHandler = new Handler()
         {
 
@@ -164,7 +166,6 @@ public class Installer {
                 }
             }
         };
-        Looper.loop();
 
     }
 
@@ -183,8 +184,14 @@ public class Installer {
         @Override
         public void run()
         {
+            // Launching a notification for each app that is installed.
+            mBuilder.setContentTitle(packagesToBeUpdated[currPackageIndex].getQualifiedName())
+                    .setContentText("Download in progress")
+                    .setSmallIcon(R.drawable.u)
+                    .setTicker(packagesToBeUpdated[currPackageIndex].getQualifiedName());
+            mBuilder.setProgress(100, 0, false);
+            notificationManager.notify(1, mBuilder.build());
 
-//            updateInstallerText("Downloading " + packagesToBeUpdated[currPackageIndex].getDisplayName());
 
             // These are placed throughout the code as a way to signal that the
             // process should stop, but without leaving the JVM or anything
@@ -215,8 +222,8 @@ public class Installer {
             SharedPreferences sharedPreferences = mContext.getSharedPreferences(Database.PACKAGE_PREFERENCES, Context.MODE_PRIVATE);
             try
             {
-                alreadyDownloaded = sharedPreferences.getInt("alreadyDownloaded",0);
-                lastModified = sharedPreferences.getString("lastmodified", "");
+                alreadyDownloaded = sharedPreferences.getInt(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" alreadyDownloaded",0);
+                lastModified = sharedPreferences.getString(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" lastmodified", "");
                 connection = (HttpURLConnection) url.openConnection();
 
                 // If this apk is partially downloaded, then ask for the rest of the apk.
@@ -349,8 +356,8 @@ public class Installer {
                 // If IO Exception, store current downloaded and last modified
                 // in shared preferences.
                 alreadyDownloaded = totalDownloaded;
-                sharedPreferences.edit().putInt("alreadyDownloaded", alreadyDownloaded).commit();
-                sharedPreferences.edit().putString("lastmodified", lastModified).commit();
+                sharedPreferences.edit().putInt(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" alreadyDownloaded", alreadyDownloaded).commit();
+                sharedPreferences.edit().putString(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" lastmodified", lastModified).commit();
 
                 error("Error while reading from the url input stream.", e);
                 return;
@@ -359,8 +366,8 @@ public class Installer {
             if(activityKilled) return;
 
             // Reset the values in shared preferences if the download is successful.
-            sharedPreferences.edit().putInt("alreadyDownloaded", 0).commit();
-            sharedPreferences.edit().putString("lastmodified", "").commit();
+            sharedPreferences.edit().putInt(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" alreadyDownloaded", 0).commit();
+            sharedPreferences.edit().putString(packagesToBeUpdated[currPackageIndex].getQualifiedName()+" lastmodified", "").commit();
             messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_FINISHED_DOWNLOADING));
         }
 
@@ -582,6 +589,11 @@ public class Installer {
      */
     private void nextPackage()
     {
+        // Update the UI in the AppList, to show how many packages
+        // have been installed.
+        AppInfoCache.get().refresh();
+        AppManager.get().nototifyMainActivity();
+        
         currPackageIndex++;
         processPackage();
     }

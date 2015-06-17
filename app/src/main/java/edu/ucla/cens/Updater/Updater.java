@@ -94,7 +94,6 @@ public class Updater
     private PackageInformation[] packagesToBeUpdated;
     private int currPackageIndex;
     private NotificationManager notificationManager;
-    private NotificationCompat.Builder mBuilder;
     private Handler messageHandler;
 
     /**
@@ -384,15 +383,10 @@ public class Updater
 				Log.d(TAG, "model .isAutoInstall(): " + model .isAutoInstall());
 				if (model.isAutoInstall()) {
 					Log.i(TAG, "Updates were found. Started unassisted installation.");
-					mBuilder = new NotificationCompat.Builder(mContext);
-                    mBuilder.setContentTitle("Picture Download")
-                            .setContentText("Download in progress")
-                            .setSmallIcon(R.drawable.u);
-                    mBuilder.setProgress(100, 5, false);
-                    notificationManager.notify(id, mBuilder.build());
-                    new Installer(notificationManager, mBuilder, mContext);
 
-				}
+                    new Installer(mContext);
+
+                }
                 else {
 					Log.i(TAG, "Updates were found. Notifying the user.");
 //					PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent, 0);
