@@ -24,6 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import edu.ucla.cens.Updater.model.AppInfoModel;
 import edu.ucla.cens.Updater.model.StatusModel;
 import edu.ucla.cens.Updater.utils.AppInfoCache;
 import edu.ucla.cens.Updater.utils.AppManager;
@@ -448,6 +449,11 @@ public class Installer {
                         public void packageInstalled(String packageName, int returnCode, String message) {
                             String msg;
                             if (returnCode == PMCLI.INSTALL_SUCCEEDED) {
+
+//                                PackageInformation inPackage = packagesToBeUpdated[currPackageIndex];
+//                                AppInfoModel appInfo = new AppInfoModel(inPackage.getQualifiedName(),inPackage.getReleaseName(),inPackage.getDisplayName(),inPackage.getVersion(),inPackage.getUrl(),inPackage.getAction());
+//                                AppInfoCache.get().add(appInfo);
+//                                Log.d("appinfo1", String.valueOf(AppInfoCache.get().get(appInfo.getQualifiedName())));
                                 msg = "Install succeeded for " + packageName + ": " + message;
                                 Log.d(TAG, msg);
                                 //updateInstallerText("Installed " + packagesToBeUpdated[currPackageIndex].getDisplayName());
@@ -554,9 +560,11 @@ public class Installer {
     {
         // Update the UI in the AppList, to show how many packages
         // have been installed.
+//        AppInfoCache.get().save(mContext);
         AppInfoCache.get().refresh();
         AppManager.get().nototifyMainActivity();
-        
+        AppInfoCache.get().save(mContext);
+
         currPackageIndex++;
         processPackage();
     }

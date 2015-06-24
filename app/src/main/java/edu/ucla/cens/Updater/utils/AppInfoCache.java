@@ -1,5 +1,10 @@
 package edu.ucla.cens.Updater.utils;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,10 +12,17 @@ import java.util.List;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.util.Log;
+
+
+import com.google.gson.Gson;
+
+import edu.ucla.cens.Updater.Database;
 import edu.ucla.cens.Updater.model.AppInfoModel;
 import edu.ucla.cens.Updater.model.SettingsModel;
 
@@ -99,10 +111,29 @@ public class AppInfoCache extends HashMap<String, AppInfoModel> {
 	/**
 	 * Load cache from persistent store
 	 */
-	public void load() {
+	public void load(Context context) {
 		// TODO: implement save
 		// perhaps use JSONBeans: https://code.google.com/p/jsonbeans
-		String appInfoJsonString = SettingsModel.get().getPrefsString("appInfo");
+        List<String> appInfoList = new ArrayList<String>();
+//        Object appInfoList;
+        SharedPreferences sharedPreferences = context.getSharedPreferences(Database.PACKAGE_PREFERENCES, Context.MODE_PRIVATE);
+
+        Gson json = new Gson();
+        String text;
+        text = sharedPreferences.getString("appInfoList","{}");
+        if(!text.equals("{}")){
+            appInfoList = json.fromJson(text,List.class);
+            for(String i : appInfoList){
+                text=sharedPreferences.getString(i,"");
+                AppInfoModel appInfoModel = json.fromJson(text,AppInfoModel.class);
+                add(appInfoModel);
+            }
+        }
+        Log.d("values ki real length", String.valueOf(values().size()));
+
+        Log.d("values appInfoList", String.valueOf(appInfoList.size()));
+
+        String appInfoJsonString = SettingsModel.get().getPrefsString("appInfo");
 		try {
 			JSONObject appInfo = new JSONObject(appInfoJsonString);
 			// ...
@@ -112,12 +143,32 @@ public class AppInfoCache extends HashMap<String, AppInfoModel> {
 		}
 	}
 	
-	public void save() {
+	public void save(Context context) {
 		// TODO: implement load
-		//for (AppInfoModel appInfo: values()) {
-		//	appInfo.
-		//}
+        Log.d("values length", String.valueOf(values().size()));
+        List<String> appInfoList = new ArrayList<String>();
+        SharedPreferences sharedPreferences = context.getSharedPreferences(Database.PACKAGE_PREFERENCES, Context.MODE_PRIVATE);
+        String text;
+        Gson json = new Gson();
+//        writeObject(context, "appInfo",appInfoList );
+		for (AppInfoModel appInfo: values()) {
+
+
+            text = json.toJson(appInfo);
+            sharedPreferences.edit().putString(appInfo.getQualifiedName(),text).commit();
+            appInfoList.add(appInfo.getQualifiedName());
+//            Log.d("json is here",text);
+//            AppInfoModel info = json.fromJson(text,AppInfoModel.class);
+//            Log.d("json is here too",json.toJson(info));
+
+		}
+        text = json.toJson(appInfoList);
+        sharedPreferences.edit().putString("appInfoList",text).commit();
+
+//
 	}
+
+
 	
 	
 }

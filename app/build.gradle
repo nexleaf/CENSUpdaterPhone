@@ -16,8 +16,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
+
 }
 
-dependencies {
-    compile 'com.android.support:support-v4:13.0+'
+dependencies{
+    compile('com.android.support:support-v4:21.0.0')
+    compile files('libs/gson-2.3.1.jar')
 }

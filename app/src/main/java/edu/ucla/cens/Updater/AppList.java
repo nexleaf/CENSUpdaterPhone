@@ -186,6 +186,7 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 		Log.initialize(this, Database.LOGGER_APP_NAME);
 		//cache.load();
 		mTabHost = getTabHost();
+
 	    
 	    //mTabHost.addTab(mTabHost.newTabSpec("updateableTabSpec").setIndicator("Updates").setContent(R.id.updateable_list_tab));
 	    mTabHost.addTab(mTabHost.newTabSpec("managedTabSpec").setIndicator("Managed Apps").setContent(R.id.managed_list_tab));
@@ -672,7 +673,11 @@ public class AppList extends TabActivity implements View.OnClickListener, Dialog
 		public View getView(int position, View convertView, ViewGroup parent) {  
 			TextView view = (TextView) super.getView(position, convertView, parent);  
 			PackageDescription desc = getItem(position);
+            Log.d("qualified name: ",String.valueOf(desc.getQualifiedName()));
+            AppInfoCache.get().load(getContext());
 			AppInfoModel appinfo = cache.get(desc.getQualifiedName());
+            Log.d("appinfo", String.valueOf(appinfo));
+
 			int color;
 			
 			if (appinfo == null) {
