@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
+
+import edu.ucla.cens.Updater.model.SettingsModel;
 import edu.ucla.cens.Updater.utils.AppManager;
 import edu.ucla.cens.Updater.utils.Utils;
 import edu.ucla.cens.systemlog.Log;
@@ -57,17 +59,29 @@ public class UpdateReceiver extends BroadcastReceiver
 		}
 		else if(action.equals(UPDATE_ACTION))
 		{
-			Log.i(TAG, "Performing update in " + this);
+            SettingsModel model = SettingsModel.get();
+            long jitter = model.getRandomizeOffsetMillis();
+            Log.d("jitter final in receiver", String.valueOf(jitter));
+            Log.i(TAG, "Performing update in " + this);
 			mContext = context;
 			// Check for updates in a new thread.
-			long now = System.currentTimeMillis();
-			long delta = now  - lastRun;
-			if (delta < frequencyThreshold ) {
-				Log.e(TAG, "Can't start Updater: an Updater has run " + delta + " ms ago which is < " + frequencyThreshold);
-			} else {
-				Log.d(TAG, "Last Updater run was " + delta + " ms ago. Running again now.");
-				doUpdate();
-			}
+            try {
+                Thread.sleep(jitter);
+            } catch (InterruptedException e) {
+                Log.d("jitter thread exception","exc");
+                e.printStackTrace();
+            }
+            Log.d("jitter stating update","start");
+            long now = System.currentTimeMillis();
+            long delta = now  - lastRun;
+            if (delta < frequencyThreshold ) {
+                Log.e(TAG, "Can't start Updater: an Updater has run " + delta + " ms ago which is < " + frequencyThreshold);
+            } else {
+                Log.d(TAG, "Last Updater run was " + delta + " ms ago. Running again now.");
+                doUpdate();
+            }
+
+
 		}
 	}
 	

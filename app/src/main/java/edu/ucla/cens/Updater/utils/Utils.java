@@ -1,6 +1,7 @@
 package edu.ucla.cens.Updater.utils;
 
 import java.util.Locale;
+import java.util.Random;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -30,7 +31,7 @@ public class Utils {
 		
 		SettingsModel model = SettingsModel.get();
 		long sleepPeriod = model.getUpdateFrequencyMillis();
-		Log.i(TAG, "resetAlarm: sleepPeriod=" + sleepPeriod);
+        Log.i(TAG, "resetAlarm: sleepPeriod=" + sleepPeriod);
 		Intent intentToFire = new Intent(UpdateReceiver.UPDATE_ACTION);
 		PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intentToFire, PendingIntent.FLAG_CANCEL_CURRENT);
  		alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), sleepPeriod, pendingIntent);
@@ -53,7 +54,7 @@ public class Utils {
 	 * if there is no Wifi.
 	 */
 	
-	private static String queryDeviceId() {
+	public static String queryDeviceId() {
 		String id = null;
 		TelephonyManager telephonyManager = ((TelephonyManager) 
 				context.getSystemService(Context.TELEPHONY_SERVICE));
@@ -75,6 +76,7 @@ public class Utils {
 		}
 		return id;
 	}
+
 
 	/**
 	 * Returns a device id.

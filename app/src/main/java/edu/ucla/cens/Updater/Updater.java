@@ -73,7 +73,7 @@ public class Updater
 	private static final String TAG = "CENS.Updater";
 	
 	private static final String SERVER_URL = 
-			"http://updater.nexleaf.org/updater/uapp/get/";
+			"https://xytuqrtxok.localtunnel.me/updater/uapp/get/";
 	
 	private static final String NOTIFICATION_HEADER = "CENS Update Manager";
 	private static final String NOTIFICATION_MESSAGE = "Tap here to review updates.";
@@ -533,6 +533,7 @@ public class Updater
 		
 		// Build the URL object and connect to the server.
 		String res = client.getAsString(urlBuilder.toString());
+		Log.d("##################################################",res);
 		return res;
 	}
 	

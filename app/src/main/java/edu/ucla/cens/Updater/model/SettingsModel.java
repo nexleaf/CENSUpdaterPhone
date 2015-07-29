@@ -3,12 +3,18 @@ package edu.ucla.cens.Updater.model;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import edu.ucla.cens.Updater.utils.AppManager;
+import edu.ucla.cens.Updater.utils.RestClient;
+import edu.ucla.cens.Updater.utils.Utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * Singleton settings model.
@@ -102,9 +108,44 @@ public class SettingsModel {
 		int value = getPrefsInt("updateFrequency");
 		return value*60000;
 	}
-	
 
-	public boolean isAutoInstall() {
+    public long getRandomizeOffsetMillis() {
+        long ret = 0;
+        final String deviceId = Utils.queryDeviceId();
+        android.util.Log.d(TAG, "getRandomizeOffsetMillis: deviceId=" + deviceId);
+        long seed = Long.parseLong(deviceId, 16);
+        Random random = new Random(seed);
+        // windows in s.
+        final int randomizeWindow = getRandomizeWindow()*60;
+        // offset in millis
+        ret = random.nextInt(randomizeWindow) * 1000L;
+        android.util.Log.d(TAG, "getRandomizeOffsetMillis: seed=" + seed + ", randomizeWindow=" + randomizeWindow + ", offset=" + ret);
+        Log.d("jitter final", String.valueOf(ret));
+        return ret;
+    }
+
+    private int getRandomizeWindow(){
+        RestClient client = new RestClient("http://updater.nexleaf.org");
+        String result = client.getAsString("https://xytuqrtxok.localtunnel.me/clients/extra_info/352608041908900");
+        Log.d("jitter result", result);
+        JSONObject resultJSON = null;
+        int resultInt = 1;
+        try {
+            resultJSON= new JSONObject(result);
+            resultInt = resultJSON.getInt("jitter");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return resultInt;
+    }
+
+
+
+
+
+
+
+    public boolean isAutoInstall() {
 		return getPrefsBoolean("autoUpdate");
 	}
 	

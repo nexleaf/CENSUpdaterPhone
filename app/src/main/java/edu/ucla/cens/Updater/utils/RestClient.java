@@ -269,6 +269,7 @@ public class RestClient {
         String result = null;
         try {
         	response = httpclient.execute(request);
+            Log.d("$$$$$$$$$$$$$$$$$$$$$$", String.valueOf(response));
         } catch(Exception e) {
         	e.printStackTrace();
         	throw new ServiceClientException("Problem executing GET request", e);
