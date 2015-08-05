@@ -34,7 +34,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="edu.ucla.cens.Updater.Installer" >
+        <activity android:name="edu.ucla.cens.Updater.Installer1" >
         </activity>
         <activity android:name="edu.ucla.cens.Updater.CustomPreferenceActivity" >
         </activity>

@@ -73,8 +73,8 @@ public class Updater
 	private static final String TAG = "CENS.Updater";
 	
 	private static final String SERVER_URL = 
-			"https://xytuqrtxok.localtunnel.me/updater/uapp/get/";
-	
+//			"https://updater.nexleaf.org/updater/uapp/get/";
+			"https://fwvpkzyoqz.localtunnel.me/updater/uapp/get1/";
 	private static final String NOTIFICATION_HEADER = "CENS Update Manager";
 	private static final String NOTIFICATION_MESSAGE = "Tap here to review updates.";
 	private static final String NOTIFICATION_TICKER = "Updates Available";
@@ -567,112 +567,132 @@ public class Updater
 		{
 			throw new InvalidParameterException("HTTP response was empty.");
 		}
-		
-		String[] info = response.split(",", 2);
-		if((info == null) || (info.length != 2))
-		{
-			throw new InvalidParameterException("The server replied with an invalid response: " + response);
-		}
-		
-		if((info[0] == null) || (info[1] == null))
-		{
-			throw new InvalidParameterException("The server replied with an invalid response: " + response);
-		}
-		
-		SharedPreferences preferences = mContext.getSharedPreferences(Database.PACKAGE_PREFERENCES, Context.MODE_PRIVATE);
-		
-		if(info[0].substring(0, 8).equals("managed=") && (info[0].length() == 9))
-		{
-			try
-			{
-				int managedVal = Integer.decode(info[0].substring(8));
-				if(managedVal == 0)
-				{
-					if(preferences.getBoolean(Database.PREFERENCES_MANAGED, false)) {
-						// If the user is switching managed state, purge the
-						// database of any old updates.
-						mDatabase.removeAllUpdates();
-					}
-					preferences.edit().putBoolean(Database.PREFERENCES_MANAGED, false).commit();
-				}
-				else if(managedVal == 1)
-				{
-					if(preferences.getBoolean(Database.PREFERENCES_MANAGED, false)) {
-						// If the user is switching managed state, purge the
-						// database of any old updates.
-						mDatabase.removeAllUpdates();
-					}
-					preferences.edit().putBoolean(Database.PREFERENCES_MANAGED, true).commit();
-				}
-				else if(managedVal > 1)
-				{
-					throw new InvalidParameterException("The value for 'managed' is numeric but invalid: " + managedVal);
-				}
-			}
-			catch(NumberFormatException e)
-			{
-				throw new InvalidParameterException("The value for 'managed' was non-numeric.");
-			}
-		}
-		else
-		{
-			throw new InvalidParameterException("The server replied with an invalid response: " + response);
-		}
-		
-		boolean result = false;
-		JSONObject jsonPackageInfo;
-		JSONArray packages = new JSONArray(info[1]);
-		String[] sPackages = new String[packages.length()];
-		AppInfoModel packageInfo;
-		
-		for(int i = 0; i < packages.length(); i++)
-		{
-			try
-			{
-				jsonPackageInfo = packages.getJSONObject(i);
-				
-				PackageInformation.Action action = null;
-				String sAction = jsonPackageInfo.getString("action");
-				if(sAction.toLowerCase().equals("clean"))
-				{
-					action = Action.CLEAN;
-				}
-				else if(sAction.toLowerCase().equals("update"))
-				{
-					action = Action.UPDATE;
-				}
-				else
-				{
-					Log.e(TAG, "Invalid 'Action' value. Defaulting to update.");
-					action = Action.UPDATE;
-				}
-				
-				packageInfo = new AppInfoModel(jsonPackageInfo.getString("package"), 
-													 jsonPackageInfo.getString("release"),
-													 jsonPackageInfo.getString("name"),
-													 jsonPackageInfo.getInt("ver"), 
-													 jsonPackageInfo.getString("url"),
-													 action);
-				result |= updatePackage(packageInfo);
-				
-				sPackages[i] = packageInfo.getQualifiedName();
-				cache.add(packageInfo);
-			}
-			catch(JSONException e)
-			{
-				Log.e(TAG, "Malformed JSON data; skipping package: " + packages.getString(i), e);
-				continue;
-			}
-			catch(IllegalArgumentException e)
-			{
-				Log.e(TAG, "Invalid package information.", e);
-				continue;
-			}
-		}
-		
-		checkForMissingManagedPackages(sPackages);
+
+        boolean result = false;
+
+        if(isJSONValid(response)){
+            String[] info = response.split(",", 2);
+            JSONObject resultJSON = new JSONObject(response);
+
+            SharedPreferences preferences = mContext.getSharedPreferences(Database.PACKAGE_PREFERENCES, Context.MODE_PRIVATE);
+
+            if(resultJSON.has("managed"))
+            {
+                try
+                {
+                    int managedVal = resultJSON.getInt("managed");
+                    if(managedVal == 0)
+                    {
+                        if(preferences.getBoolean(Database.PREFERENCES_MANAGED, false)) {
+                            // If the user is switching managed state, purge the
+                            // database of any old updates.
+                            mDatabase.removeAllUpdates();
+                        }
+                        preferences.edit().putBoolean(Database.PREFERENCES_MANAGED, false).commit();
+                    }
+                    else if(managedVal == 1)
+                    {
+                        if(preferences.getBoolean(Database.PREFERENCES_MANAGED, false)) {
+                            // If the user is switching managed state, purge the
+                            // database of any old updates.
+                            mDatabase.removeAllUpdates();
+                        }
+                        preferences.edit().putBoolean(Database.PREFERENCES_MANAGED, true).commit();
+                    }
+                    else if(managedVal > 1)
+                    {
+                        throw new InvalidParameterException("The value for 'managed' is numeric but invalid: " + managedVal);
+                    }
+                }
+                catch(NumberFormatException e)
+                {
+                    throw new InvalidParameterException("The value for 'managed' was non-numeric.");
+                }
+            }
+            else
+            {
+                throw new InvalidParameterException("The server replied with an invalid response: " + response);
+            }
+
+            JSONObject jsonPackageInfo;
+            JSONArray packages = resultJSON.getJSONArray("apps");
+            String[] sPackages = new String[packages.length()];
+            AppInfoModel packageInfo;
+
+            for(int i = 0; i < packages.length(); i++)
+            {
+                try
+                {
+                    jsonPackageInfo = packages.getJSONObject(i);
+
+                    PackageInformation.Action action = null;
+                    String sAction = jsonPackageInfo.getString("action");
+                    if(sAction.toLowerCase().equals("clean"))
+                    {
+                        action = Action.CLEAN;
+                    }
+                    else if(sAction.toLowerCase().equals("update"))
+                    {
+                        action = Action.UPDATE;
+                    }
+                    else
+                    {
+                        Log.e(TAG, "Invalid 'Action' value. Defaulting to update.");
+                        action = Action.UPDATE;
+                    }
+                    String firstUrl = String.valueOf(jsonPackageInfo.getJSONArray("url").get(0));
+                    packageInfo = new AppInfoModel(jsonPackageInfo.getString("package"),
+                            jsonPackageInfo.getString("release"),
+                            jsonPackageInfo.getString("name"),
+                            jsonPackageInfo.getInt("ver"),
+                            firstUrl,
+                            action);
+                    result |= updatePackage(packageInfo);
+
+                    sPackages[i] = packageInfo.getQualifiedName();
+                    cache.add(packageInfo);
+                }
+                catch(JSONException e)
+                {
+                    Log.e(TAG, "Malformed JSON data; skipping package: " + packages.getString(i), e);
+
+                }
+                catch(IllegalArgumentException e)
+                {
+                    Log.e(TAG, "Invalid package information.", e);
+
+                }
+            }
+
+            checkForMissingManagedPackages(sPackages);
+
+        }
+        else{
+            result = false;
+            throw new InvalidParameterException("The server replied with an invalid response: " + response);
+
+        }
+
 		return result;
 	}
+
+    /**
+        Checks whether the provided string is a valid json or not.
+     */
+    private boolean isJSONValid(String test) {
+        try {
+            new JSONObject(test);
+        } catch (JSONException ex) {
+            // edited, to include @Arthur's comment
+            // e.g. in case JSONArray is valid as well...
+            try {
+                new JSONArray(test);
+            } catch (JSONException ex1) {
+                return false;
+            }
+        }
+        return true;
+    }
 	
 	/**
 	 * Checks the list of packages we were just given and compares it against

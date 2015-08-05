@@ -15,6 +15,7 @@ ADDED from AndroidManifest.xml:2:1
 		INJECTED from AndroidManifest.xml:0:0
 uses-sdk
 ADDED from AndroidManifest.xml:7:5
+MERGED from com.android.support:support-v4:21.0.0:15:5
 	android:targetSdkVersion
 		ADDED from AndroidManifest.xml:7:41
 		INJECTED from AndroidManifest.xml:0:0
@@ -81,6 +82,7 @@ ADDED from AndroidManifest.xml:22:5
 		ADDED from AndroidManifest.xml:22:22
 application
 ADDED from AndroidManifest.xml:24:5
+MERGED from com.android.support:support-v4:21.0.0:16:5
 	android:label
 		ADDED from AndroidManifest.xml:24:56
 	android:allowBackup
@@ -101,7 +103,7 @@ category#android.intent.category.LAUNCHER
 ADDED from AndroidManifest.xml:32:11
 	android:name
 		ADDED from AndroidManifest.xml:32:21
-activity#edu.ucla.cens.Updater.Installer
+activity#edu.ucla.cens.Updater.Installer1
 ADDED from AndroidManifest.xml:36:3
 	android:name
 		ADDED from AndroidManifest.xml:36:13
