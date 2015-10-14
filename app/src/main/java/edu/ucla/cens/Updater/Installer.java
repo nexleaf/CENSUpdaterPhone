@@ -186,181 +186,158 @@ public class Installer {
         @Override
         public void run()
         {
-            // Launching a notification for each app that is installed.
-            mBuilder.setContentTitle(packagesToBeUpdated[currPackageIndex].getQualifiedName())
-                    .setContentText("Download in progress")
-                    .setSmallIcon(R.drawable.u)
-                    .setTicker(packagesToBeUpdated[currPackageIndex].getQualifiedName());
-            mBuilder.setProgress(100, 0, false);
-            notificationManager.notify(1, mBuilder.build());
-            String packageQualifiedName = packagesToBeUpdated[currPackageIndex].getQualifiedName();
+//            String[] urls = packagesToBeUpdated[currPackageIndex].getUrl().split(",");
+//            for(String app_url: urls) {
+                // Launching a notification for each app that is installed.
+                mBuilder.setContentTitle(packagesToBeUpdated[currPackageIndex].getQualifiedName())
+                        .setContentText("Download in progress")
+                        .setSmallIcon(R.drawable.u)
+                        .setTicker(packagesToBeUpdated[currPackageIndex].getQualifiedName());
+                mBuilder.setProgress(100, 0, false);
+                notificationManager.notify(1, mBuilder.build());
+                String packageQualifiedName = packagesToBeUpdated[currPackageIndex].getQualifiedName();
 
-            // These are placed throughout the code as a way to signal that the
-            // process should stop, but without leaving the JVM or anything
-            // else in a half-open state.
-            if(activityKilled) return;
+                // These are placed throughout the code as a way to signal that the
+                // process should stop, but without leaving the JVM or anything
+                // else in a half-open state.
+                if (activityKilled) return;
 
-            // Get the URL for the current package.
-            URL url;
-            try
-            {
-                url = new URL(packagesToBeUpdated[currPackageIndex].getUrl());
-            }
-            catch(MalformedURLException e)
-            {
-                error("Malformed URL in package " + packageQualifiedName, e);
-                return;
-            }
-
-            if(activityKilled) return;
-
-            // Open the connection to the current package and get its length.
-            HttpURLConnection connection;
-            int totalLength, alreadyDownloaded;
-            String lastModified, responseCode;
-
-            // Shared preferences used to store size of the apk downloaded
-            // and its last modified date.
-            SharedPreferences sharedPreferences = mContext.getSharedPreferences(Database.PACKAGE_PREFERENCES, Context.MODE_PRIVATE);
-            try
-            {
-                alreadyDownloaded = sharedPreferences.getInt(packageQualifiedName+" alreadyDownloaded",0);
-                lastModified = sharedPreferences.getString(packageQualifiedName+" lastmodified", "");
-                connection = (HttpURLConnection) url.openConnection();
-
-                // If this apk is partially downloaded, then ask for the rest of the apk.
-                if(alreadyDownloaded > 0){
-                    connection.setRequestProperty("Range", "bytes=" + alreadyDownloaded + "-");
-                    connection.setRequestProperty("If-Range", lastModified);
-                    connection.connect();
-                }
-                // If this is a new download, then store the last modified for future use.
-                else{
-                    connection.connect();
-                    lastModified = connection.getHeaderField("Last-Modified");
-                    alreadyDownloaded = 0;
-                }
-                // Total length of the file is length of the file being
-                // downloaded + length which is already downloaded.
-                totalLength = connection.getContentLength() +alreadyDownloaded;
-                responseCode = String.valueOf(connection.getResponseCode());
-
-                if(totalLength <= 0)
-                {
-                    error("The total length of the file is invalid: " + totalLength, new IllegalStateException("The file no longer exists or has an invalid size."));
-                    Updater updater = new Updater(mContext);
-                    updater.doUpdate();
+                // Get the URL for the current package.
+                URL url;
+                try {
+                    url = new URL(packagesToBeUpdated[currPackageIndex].getUrl());
+                } catch (MalformedURLException e) {
+                    error("Malformed URL in package " + packageQualifiedName, e);
                     return;
                 }
-            }
-            catch(IOException e)
-            {
-                error("Failed to connect to the remote file.", e);
-                return;
-            }
 
-            if(activityKilled) return;
+                if (activityKilled) return;
 
-            // Get the input stream to begin reading the content.
-            InputStream dataStream;
-            try
-            {
-                dataStream = connection.getInputStream();
-            }
-            catch(IOException e)
-            {
-                error("Failed to open an input stream from the url: " + url, e);
-                return;
-            }
+                // Open the connection to the current package and get its length.
+                HttpURLConnection connection;
+                int totalLength, alreadyDownloaded;
+                String lastModified, responseCode;
 
-            if(activityKilled) return;
+                // Shared preferences used to store size of the apk downloaded
+                // and its last modified date.
+                SharedPreferences sharedPreferences = mContext.getSharedPreferences(Database.PACKAGE_PREFERENCES, Context.MODE_PRIVATE);
+                try {
+                    alreadyDownloaded = sharedPreferences.getInt(packageQualifiedName + " alreadyDownloaded", 0);
+                    lastModified = sharedPreferences.getString(packageQualifiedName + " lastmodified", "");
+                    connection = (HttpURLConnection) url.openConnection();
 
-            // Create a connection to the local file that will store the APK.
-            // The package is made world readable, so that Android's package
-            // installer can read it.
-            FileOutputStream apkFile;
-            try
-            {
-                // If partial content, then append the file. Else, write as usual.
-                if(responseCode.equals("206")){
-                    apkFile = mContext.openFileOutput(packageQualifiedName + ".apk", mContext.MODE_WORLD_READABLE | mContext.MODE_APPEND);
-                }
-                else{
-                    apkFile = mContext.openFileOutput(packageQualifiedName + ".apk", mContext.MODE_WORLD_READABLE);
-
-                }
-            }
-            catch(ArrayIndexOutOfBoundsException e)
-            {
-                error("The array index, " + currPackageIndex + ", was out of bounds for the packages to be updated array which length: " + packagesToBeUpdated.length, e);
-                return;
-            }
-            catch(IllegalArgumentException e)
-            {
-                error("The package filename was invalid.", e);
-                return;
-            }
-            catch(IOException e)
-            {
-                error("Could not create temporary file.", e);
-                return;
-            }
-
-            if(activityKilled) return;
-            int totalDownloaded = 0;
-            try
-            {
-                int currDownloaded = 0;
-                totalDownloaded = alreadyDownloaded;
-
-                // Download the file chunk by chunk each time updating the
-                // interface with our progress.
-                byte[] buff = new byte[MAX_CHUNK_LENGTH];
-                while((currDownloaded = dataStream.read(buff)) != -1)
-                {
-                    try
-                    {
-                        apkFile.write(buff, 0, currDownloaded);
-
-                        totalDownloaded += currDownloaded;
-
-                        // updateProgressBarValue(totalDownloaded, totalLength);
-                        mBuilder.setProgress(totalLength, totalDownloaded, false);
-                        // Displays the progress bar for the first time.
-                        notificationManager.notify(1, mBuilder.build());
-
-                        // This was originally being done to debug the code but
-                        // is being left in as a flag that something odd has
-                        // happened.
-                        if(totalLength - totalDownloaded < 0)
-                        {
-                            Log.e(TAG, "Downloaded more than the total size of the file.");
-                        }
+                    // If this apk is partially downloaded, then ask for the rest of the apk.
+                    if (alreadyDownloaded > 0) {
+                        connection.setRequestProperty("Range", "bytes=" + alreadyDownloaded + "-");
+                        connection.setRequestProperty("If-Range", lastModified);
+                        connection.connect();
                     }
-                    catch(IOException e)
-                    {
-                        error("Error while writing to the file output stream.", e);
+                    // If this is a new download, then store the last modified for future use.
+                    else {
+                        connection.connect();
+                        lastModified = connection.getHeaderField("Last-Modified");
+                        alreadyDownloaded = 0;
+                    }
+                    // Total length of the file is length of the file being
+                    // downloaded + length which is already downloaded.
+                    totalLength = connection.getContentLength() + alreadyDownloaded;
+                    responseCode = String.valueOf(connection.getResponseCode());
+
+                    if (totalLength <= 0) {
+                        error("The total length of the file is invalid: " + totalLength, new IllegalStateException("The file no longer exists or has an invalid size."));
+                        Updater updater = new Updater(mContext);
+                        updater.doUpdate();
                         return;
                     }
+                } catch (IOException e) {
+                    error("Failed to connect to the remote file.", e);
+                    return;
                 }
-            }
-            catch(IOException e)
-            {
-                // If IO Exception, store current downloaded and last modified
-                // in shared preferences.
-                alreadyDownloaded = totalDownloaded;
-                sharedPreferences.edit().putInt(packageQualifiedName+" alreadyDownloaded", alreadyDownloaded).commit();
-                sharedPreferences.edit().putString(packageQualifiedName+" lastmodified", lastModified).commit();
 
-                error("Error while reading from the url input stream.", e);
-                return;
-            }
+                if (activityKilled) return;
 
-            if(activityKilled) return;
+                // Get the input stream to begin reading the content.
+                InputStream dataStream;
+                try {
+                    dataStream = connection.getInputStream();
+                } catch (IOException e) {
+                    error("Failed to open an input stream from the url: " + url, e);
+                    return;
+                }
 
-            // Reset the values in shared preferences if the download is successful.
-            sharedPreferences.edit().putInt(packageQualifiedName+" alreadyDownloaded", 0).commit();
-            sharedPreferences.edit().putString(packageQualifiedName+" lastmodified", "").commit();
+                if (activityKilled) return;
+
+                // Create a connection to the local file that will store the APK.
+                // The package is made world readable, so that Android's package
+                // installer can read it.
+                FileOutputStream apkFile;
+                try {
+                    // If partial content, then append the file. Else, write as usual.
+                    if (responseCode.equals("206")) {
+                        apkFile = mContext.openFileOutput(packageQualifiedName + ".apk", mContext.MODE_WORLD_READABLE | mContext.MODE_APPEND);
+                    } else {
+                        apkFile = mContext.openFileOutput(packageQualifiedName + ".apk", mContext.MODE_WORLD_READABLE);
+
+                    }
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    error("The array index, " + currPackageIndex + ", was out of bounds for the packages to be updated array which length: " + packagesToBeUpdated.length, e);
+                    return;
+                } catch (IllegalArgumentException e) {
+                    error("The package filename was invalid.", e);
+                    return;
+                } catch (IOException e) {
+                    error("Could not create temporary file.", e);
+                    return;
+                }
+
+                if (activityKilled) return;
+                int totalDownloaded = 0;
+                try {
+                    int currDownloaded = 0;
+                    totalDownloaded = alreadyDownloaded;
+
+                    // Download the file chunk by chunk each time updating the
+                    // interface with our progress.
+                    byte[] buff = new byte[MAX_CHUNK_LENGTH];
+                    while ((currDownloaded = dataStream.read(buff)) != -1) {
+                        try {
+                            apkFile.write(buff, 0, currDownloaded);
+
+                            totalDownloaded += currDownloaded;
+
+                            // updateProgressBarValue(totalDownloaded, totalLength);
+                            mBuilder.setProgress(totalLength, totalDownloaded, false);
+                            // Displays the progress bar for the first time.
+                            notificationManager.notify(1, mBuilder.build());
+
+                            // This was originally being done to debug the code but
+                            // is being left in as a flag that something odd has
+                            // happened.
+                            if (totalLength - totalDownloaded < 0) {
+                                Log.e(TAG, "Downloaded more than the total size of the file.");
+                            }
+                        } catch (IOException e) {
+                            error("Error while writing to the file output stream.", e);
+                            return;
+                        }
+                    }
+                } catch (IOException e) {
+                    // If IO Exception, store current downloaded and last modified
+                    // in shared preferences.
+                    alreadyDownloaded = totalDownloaded;
+                    sharedPreferences.edit().putInt(packageQualifiedName + " alreadyDownloaded", alreadyDownloaded).commit();
+                    sharedPreferences.edit().putString(packageQualifiedName + " lastmodified", lastModified).commit();
+
+                    error("Error while reading from the url input stream.", e);
+                    return;
+                }
+
+                if (activityKilled) return;
+
+                // Reset the values in shared preferences if the download is successful.
+                sharedPreferences.edit().putInt(packageQualifiedName + " alreadyDownloaded", 0).commit();
+                sharedPreferences.edit().putString(packageQualifiedName + " lastmodified", "").commit();
+//            }
             messageHandler.sendMessage(messageHandler.obtainMessage(MESSAGE_FINISHED_DOWNLOADING));
         }
 

@@ -73,8 +73,8 @@ public class Updater
 	private static final String TAG = "CENS.Updater";
 	
 	private static final String SERVER_URL = 
-//			"https://updater.nexleaf.org/updater/uapp/get/";
-			"https://fwvpkzyoqz.localtunnel.me/updater/uapp/get1/";
+			"https://updater.nexleaf.org/updater/uapp/get/";
+//			"https://jxehrafwlw.localtunnel.me/updater/uapp/get1/";
 	private static final String NOTIFICATION_HEADER = "CENS Update Manager";
 	private static final String NOTIFICATION_MESSAGE = "Tap here to review updates.";
 	private static final String NOTIFICATION_TICKER = "Updates Available";
@@ -95,6 +95,7 @@ public class Updater
     private int currPackageIndex;
     private NotificationManager notificationManager;
     private Handler messageHandler;
+    private String requestUrls = "";
 
     /**
 	 * The name of the group to which this device should be registered.
@@ -151,6 +152,16 @@ public class Updater
 		
 		mContext = context;
 		mDatabase = new Database(context);
+		SharedPreferences preferences = mContext.getSharedPreferences(
+                Database.PACKAGE_PREFERENCES,
+                Context.MODE_PRIVATE);
+		requestUrls = preferences.getString("requestUrls","");
+        if(requestUrls != null && requestUrls.equals("")){
+            requestUrls = SERVER_URL;
+            preferences.edit().putString("requestUrls",SERVER_URL).commit();
+        }
+//        requestUrls = preferences.getString("requestUrls","");
+
 
         /**
 		 * This is specific to android 2.2 and 2.3 ... 
@@ -336,7 +347,7 @@ public class Updater
     } catch (Exception e) {
       e.printStackTrace();
     }
-    
+
 
 		
 		Log.initialize(context, Database.LOGGER_APP_NAME);
@@ -364,75 +375,82 @@ public class Updater
         if (!radioOn) {
             Log.w(TAG, "doUpdate: radio is off. Will try update anyway.");
         }
-		try
-		{
-			Log.i(TAG, "Beginning update check.");
-			
-			String response = doGetRequest();
-			
-			Log.i(TAG, "Got response: " + response);
-			
-			if(parseResponse(response))
-			{
-				dataRetrievalError = false;
-				notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-				Notification notification = new Notification(R.drawable.u, NOTIFICATION_TICKER, System.currentTimeMillis());
-				notification.defaults |= Notification.DEFAULT_LIGHTS;
-				notification.flags |= Notification.FLAG_AUTO_CANCEL;
-                final int id = 1;
-				Log.d(TAG, "model .isAutoInstall(): " + model .isAutoInstall());
-				if (model.isAutoInstall()) {
-					Log.i(TAG, "Updates were found. Started unassisted installation.");
+        String[] urls = requestUrls.split(",");
+        //get urls form shared preferences
+        //while(urls are not finished){
+        for(String url: urls){
 
-                    new Installer(mContext);
+            try
+            {
+                Log.i(TAG, "Beginning update check.");
 
+                String response = doGetRequest(url);
+
+                Log.i(TAG, "Got response: " + response);
+                if(parseResponse(response))
+                {
+                    dataRetrievalError = false;
+                    notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                    Notification notification = new Notification(R.drawable.u, NOTIFICATION_TICKER, System.currentTimeMillis());
+                    notification.defaults |= Notification.DEFAULT_LIGHTS;
+                    notification.flags |= Notification.FLAG_AUTO_CANCEL;
+                    final int id = 1;
+                    Log.d(TAG, "model .isAutoInstall(): " + model .isAutoInstall());
+                    if (model.isAutoInstall()) {
+                        Log.i(TAG, "Updates were found. Started unassisted installation.");
+
+                        new Installer(mContext);
+
+                    }
+                    else {
+                        Log.i(TAG, "Updates were found. Notifying the user.");
+    //					PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent, 0);
+                        notification.setLatestEventInfo(mContext, NOTIFICATION_HEADER, NOTIFICATION_MESSAGE,null);
+                        notificationManager.notify(NOTIFICATION_ID, notification);
+
+                    }
+                    break;
                 }
-                else {
-					Log.i(TAG, "Updates were found. Notifying the user.");
-//					PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent, 0);
-					notification.setLatestEventInfo(mContext, NOTIFICATION_HEADER, NOTIFICATION_MESSAGE,null);
-					notificationManager.notify(NOTIFICATION_ID, notification);
-					
-				}
-			}
-			rc = true;
-		}
-		catch(ServiceClientException e)
-		{
-			msg = e.toString();
-			err = e;
-		}
-		catch(MalformedURLException e)
-		{
-			msg = "There is a problem with the request URL.";
-			err = e;
-		}
-		catch(IOException e)
-		{
-			msg = "Error while communicating with the server.";
-			err = e;
-		}
-		catch(InvalidParameterException e)
-		{
-			msg = "Server response was invalid.";
-			err = e;
-		}
-		catch(JSONException e)
-		{
-			msg = "Error parsing the JSON in the server response.";
-			err = e;
-		} finally {
-			if (err!=null) {
-				Log.e(TAG, msg, err);
-				StatusModel.get().addDownloadMessage(err.getMessage());
-				if (dataRetrievalError) {
-					cache.setDataRetrievalError(err.getMessage());
-				} else {
-					cache.resetDataRetrievalError();
-				}
-			} else {
-			}
-		}
+                rc = true;
+
+            }
+            catch(ServiceClientException e)
+            {
+                msg = e.toString();
+                err = e;
+            }
+            catch(MalformedURLException e)
+            {
+                msg = "There is a problem with the request URL.";
+                err = e;
+            }
+            catch(IOException e)
+            {
+                msg = "Error while communicating with the server.";
+                err = e;
+            }
+            catch(InvalidParameterException e)
+            {
+                msg = "Server response was invalid.";
+                err = e;
+            }
+            catch(JSONException e)
+            {
+                msg = "Error parsing the JSON in the server response.";
+                err = e;
+            } finally {
+                if (err!=null) {
+                    Log.e(TAG, msg, err);
+                    StatusModel.get().addDownloadMessage(err.getMessage());
+                    if (dataRetrievalError) {
+                        cache.setDataRetrievalError(err.getMessage());
+                    } else {
+                        cache.resetDataRetrievalError();
+                    }
+                } else {
+                }
+            }
+        }
 		return rc;
 	}
 	
@@ -448,10 +466,10 @@ public class Updater
 	 * @throws IOException Thrown if there is an error while sending or
 	 * 					   receiving data from the server.
 	 */
-	private String doGetRequest() throws MalformedURLException, IOException
+	private String doGetRequest(String url) throws MalformedURLException, IOException
 	{
 		// Begin building the request URL.
-		StringBuilder urlBuilder = new StringBuilder(SERVER_URL);
+		StringBuilder urlBuilder = new StringBuilder(url);
 
 		// Get the device's identifier and add it to the URL.
 		String identifier = Utils.getDeviceId();
@@ -533,7 +551,6 @@ public class Updater
 		
 		// Build the URL object and connect to the server.
 		String res = client.getAsString(urlBuilder.toString());
-		Log.d("##################################################",res);
 		return res;
 	}
 	
@@ -614,6 +631,10 @@ public class Updater
                 throw new InvalidParameterException("The server replied with an invalid response: " + response);
             }
 
+            String request_urls = resultJSON.getString("request_urls");
+            request_urls = request_urls+","+SERVER_URL;
+            preferences.edit().putString("requestUrls",request_urls).commit();
+
             JSONObject jsonPackageInfo;
             JSONArray packages = resultJSON.getJSONArray("apps");
             String[] sPackages = new String[packages.length()];
@@ -640,12 +661,11 @@ public class Updater
                         Log.e(TAG, "Invalid 'Action' value. Defaulting to update.");
                         action = Action.UPDATE;
                     }
-                    String firstUrl = String.valueOf(jsonPackageInfo.getJSONArray("url").get(0));
                     packageInfo = new AppInfoModel(jsonPackageInfo.getString("package"),
                             jsonPackageInfo.getString("release"),
                             jsonPackageInfo.getString("name"),
                             jsonPackageInfo.getInt("ver"),
-                            firstUrl,
+                            jsonPackageInfo.getString("url"),
                             action);
                     result |= updatePackage(packageInfo);
 
